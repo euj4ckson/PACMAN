@@ -1,0 +1,200 @@
+import type { GameState } from "./Utils";
+
+interface HUDSnapshot {
+  score: number;
+  lives: number;
+  pelletsRemaining: number;
+  state: GameState;
+  ghostMode: string;
+  cameraMode: string;
+  message: string;
+}
+
+function formatStateLabel(state: GameState): string {
+  switch (state) {
+    case "ready":
+      return "READY";
+    case "playing":
+      return "PLAYING";
+    case "gameover":
+      return "GAME OVER";
+    case "win":
+      return "WIN";
+    default:
+      return state;
+  }
+}
+
+export class HUD {
+  private readonly root: HTMLDivElement;
+  private readonly scoreValue: HTMLSpanElement;
+  private readonly livesValue: HTMLSpanElement;
+  private readonly pelletsValue: HTMLSpanElement;
+  private readonly stateValue: HTMLSpanElement;
+  private readonly ghostModeValue: HTMLSpanElement;
+  private readonly cameraValue: HTMLSpanElement;
+  private readonly messageValue: HTMLDivElement;
+  private readonly overlay: HTMLDivElement;
+  private readonly overlayCard: HTMLDivElement;
+  private readonly overlayBadge: HTMLSpanElement;
+  private readonly overlayTitle: HTMLHeadingElement;
+  private readonly overlayText: HTMLParagraphElement;
+  private readonly overlayHint: HTMLParagraphElement;
+
+  constructor(container: HTMLElement) {
+    this.root = document.createElement("div");
+    this.root.className = "hud-shell";
+    this.root.innerHTML = `
+      <section class="hud">
+        <header class="hud-header">
+          <p class="hud-kicker">Arcade Session</p>
+          <h1 class="hud-title">PAC-MAN 3D</h1>
+        </header>
+        <div class="hud-grid">
+          <div class="hud-card">
+            <span class="hud-label">Score</span>
+            <span class="hud-value hud-value-lg" data-role="score">0</span>
+          </div>
+          <div class="hud-card">
+            <span class="hud-label">Vidas</span>
+            <span class="hud-value" data-role="lives">3</span>
+          </div>
+          <div class="hud-card">
+            <span class="hud-label">Pellets</span>
+            <span class="hud-value" data-role="pellets">0</span>
+          </div>
+          <div class="hud-card">
+            <span class="hud-label">Estado</span>
+            <span class="hud-value" data-role="state">READY</span>
+          </div>
+          <div class="hud-card">
+            <span class="hud-label">Fantasmas</span>
+            <span class="hud-value" data-role="ghost-mode">SCATTER</span>
+          </div>
+          <div class="hud-card">
+            <span class="hud-label">Camera</span>
+            <span class="hud-value" data-role="camera">Longe</span>
+          </div>
+        </div>
+        <div class="hud-message" data-role="message">Pressione Enter para comecar.</div>
+      </section>
+      <section class="intro-overlay" data-role="overlay">
+        <div class="intro-card intro-ready" data-role="overlay-card">
+          <span class="intro-badge" data-role="overlay-badge">READY</span>
+          <h2 class="intro-title" data-role="overlay-title">PAC-MAN 3D</h2>
+          <p class="intro-text" data-role="overlay-text">Limpe o labirinto e fuja dos fantasmas.</p>
+          <div class="intro-help">
+            <span>Movimento: WASD ou Setas</span>
+            <span>Camera: C</span>
+          </div>
+          <p class="intro-hint" data-role="overlay-hint">Pressione Enter para jogar</p>
+        </div>
+      </section>
+    `;
+
+    const scoreValue = this.root.querySelector<HTMLSpanElement>('[data-role="score"]');
+    const livesValue = this.root.querySelector<HTMLSpanElement>('[data-role="lives"]');
+    const pelletsValue = this.root.querySelector<HTMLSpanElement>('[data-role="pellets"]');
+    const stateValue = this.root.querySelector<HTMLSpanElement>('[data-role="state"]');
+    const ghostModeValue = this.root.querySelector<HTMLSpanElement>('[data-role="ghost-mode"]');
+    const cameraValue = this.root.querySelector<HTMLSpanElement>('[data-role="camera"]');
+    const messageValue = this.root.querySelector<HTMLDivElement>('[data-role="message"]');
+    const overlay = this.root.querySelector<HTMLDivElement>('[data-role="overlay"]');
+    const overlayCard = this.root.querySelector<HTMLDivElement>('[data-role="overlay-card"]');
+    const overlayBadge = this.root.querySelector<HTMLSpanElement>('[data-role="overlay-badge"]');
+    const overlayTitle = this.root.querySelector<HTMLHeadingElement>('[data-role="overlay-title"]');
+    const overlayText = this.root.querySelector<HTMLParagraphElement>('[data-role="overlay-text"]');
+    const overlayHint = this.root.querySelector<HTMLParagraphElement>('[data-role="overlay-hint"]');
+
+    if (
+      !scoreValue ||
+      !livesValue ||
+      !pelletsValue ||
+      !stateValue ||
+      !ghostModeValue ||
+      !cameraValue ||
+      !messageValue ||
+      !overlay ||
+      !overlayCard ||
+      !overlayBadge ||
+      !overlayTitle ||
+      !overlayText ||
+      !overlayHint
+    ) {
+      throw new Error("Falha ao construir HUD.");
+    }
+
+    this.scoreValue = scoreValue;
+    this.livesValue = livesValue;
+    this.pelletsValue = pelletsValue;
+    this.stateValue = stateValue;
+    this.ghostModeValue = ghostModeValue;
+    this.cameraValue = cameraValue;
+    this.messageValue = messageValue;
+    this.overlay = overlay;
+    this.overlayCard = overlayCard;
+    this.overlayBadge = overlayBadge;
+    this.overlayTitle = overlayTitle;
+    this.overlayText = overlayText;
+    this.overlayHint = overlayHint;
+
+    container.appendChild(this.root);
+  }
+
+  public update(snapshot: HUDSnapshot): void {
+    this.scoreValue.textContent = snapshot.score.toString();
+    this.livesValue.textContent = this.formatLives(snapshot.lives);
+    this.pelletsValue.textContent = snapshot.pelletsRemaining.toString();
+    this.stateValue.textContent = formatStateLabel(snapshot.state);
+    this.ghostModeValue.textContent = snapshot.ghostMode;
+    this.cameraValue.textContent = snapshot.cameraMode;
+    this.messageValue.textContent = snapshot.message;
+
+    this.updateOverlay(snapshot);
+  }
+
+  public dispose(): void {
+    this.root.remove();
+  }
+
+  private formatLives(lives: number): string {
+    const livesSafe = Math.max(0, lives);
+    const pips = "o".repeat(livesSafe);
+    return pips ? `${livesSafe} (${pips})` : "0";
+  }
+
+  private updateOverlay(snapshot: HUDSnapshot): void {
+    if (snapshot.state === "playing") {
+      this.overlay.classList.add("is-hidden");
+      this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win");
+      return;
+    }
+
+    this.overlay.classList.remove("is-hidden");
+    this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win");
+
+    if (snapshot.state === "win") {
+      this.overlayCard.classList.add("intro-win");
+      this.overlayBadge.textContent = "WIN";
+      this.overlayTitle.textContent = "Vitoria Total";
+      this.overlayText.textContent = "Voce limpou o labirinto inteiro.";
+      this.overlayHint.textContent = "Pressione Enter para jogar novamente";
+      return;
+    }
+
+    if (snapshot.state === "gameover") {
+      this.overlayCard.classList.add("intro-danger");
+      this.overlayBadge.textContent = "GAME OVER";
+      this.overlayTitle.textContent = "Fim de Jogo";
+      this.overlayText.textContent = "Os fantasmas dominaram a arena.";
+      this.overlayHint.textContent = "Pressione Enter para reiniciar";
+      return;
+    }
+
+    this.overlayCard.classList.add("intro-ready");
+    this.overlayBadge.textContent = "READY";
+    this.overlayTitle.textContent = "PAC-MAN 3D";
+    this.overlayText.textContent = snapshot.message;
+    this.overlayHint.textContent = "Pressione Enter para iniciar";
+  }
+}
