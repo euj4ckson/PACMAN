@@ -27,6 +27,8 @@ function formatStateLabel(state: GameState): string {
 
 export class HUD {
   private readonly root: HTMLDivElement;
+  private readonly hudPanel: HTMLElement;
+  private readonly hudToggleButton: HTMLButtonElement;
   private readonly scoreValue: HTMLSpanElement;
   private readonly livesValue: HTMLSpanElement;
   private readonly pelletsValue: HTMLSpanElement;
@@ -40,12 +42,14 @@ export class HUD {
   private readonly overlayTitle: HTMLHeadingElement;
   private readonly overlayText: HTMLParagraphElement;
   private readonly overlayHint: HTMLParagraphElement;
+  private mobileHudHidden = false;
+  private readonly onToggleHudBound: () => void;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement("div");
     this.root.className = "hud-shell";
     this.root.innerHTML = `
-      <section class="hud">
+      <section class="hud" data-role="hud-panel">
         <header class="hud-header">
           <p class="hud-kicker">Arcade Session</p>
           <h1 class="hud-title">PAC-MAN 3D</h1>
@@ -78,6 +82,9 @@ export class HUD {
         </div>
         <div class="hud-message" data-role="message">Pressione Enter para comecar.</div>
       </section>
+      <button type="button" class="hud-visibility-toggle" data-role="hud-toggle">
+        Ocultar HUD
+      </button>
       <section class="intro-overlay" data-role="overlay">
         <div class="intro-card intro-ready" data-role="overlay-card">
           <span class="intro-badge" data-role="overlay-badge">READY</span>
@@ -99,6 +106,8 @@ export class HUD {
     const ghostModeValue = this.root.querySelector<HTMLSpanElement>('[data-role="ghost-mode"]');
     const cameraValue = this.root.querySelector<HTMLSpanElement>('[data-role="camera"]');
     const messageValue = this.root.querySelector<HTMLDivElement>('[data-role="message"]');
+    const hudPanel = this.root.querySelector<HTMLElement>('[data-role="hud-panel"]');
+    const hudToggleButton = this.root.querySelector<HTMLButtonElement>('[data-role="hud-toggle"]');
     const overlay = this.root.querySelector<HTMLDivElement>('[data-role="overlay"]');
     const overlayCard = this.root.querySelector<HTMLDivElement>('[data-role="overlay-card"]');
     const overlayBadge = this.root.querySelector<HTMLSpanElement>('[data-role="overlay-badge"]');
@@ -114,6 +123,8 @@ export class HUD {
       !ghostModeValue ||
       !cameraValue ||
       !messageValue ||
+      !hudPanel ||
+      !hudToggleButton ||
       !overlay ||
       !overlayCard ||
       !overlayBadge ||
@@ -131,12 +142,17 @@ export class HUD {
     this.ghostModeValue = ghostModeValue;
     this.cameraValue = cameraValue;
     this.messageValue = messageValue;
+    this.hudPanel = hudPanel;
+    this.hudToggleButton = hudToggleButton;
     this.overlay = overlay;
     this.overlayCard = overlayCard;
     this.overlayBadge = overlayBadge;
     this.overlayTitle = overlayTitle;
     this.overlayText = overlayText;
     this.overlayHint = overlayHint;
+    this.onToggleHudBound = () => this.toggleMobileHud();
+    this.hudToggleButton.addEventListener("click", this.onToggleHudBound);
+    this.applyHudVisibilityState();
 
     container.appendChild(this.root);
   }
@@ -154,6 +170,7 @@ export class HUD {
   }
 
   public dispose(): void {
+    this.hudToggleButton.removeEventListener("click", this.onToggleHudBound);
     this.root.remove();
   }
 
@@ -196,5 +213,20 @@ export class HUD {
     this.overlayTitle.textContent = "PAC-MAN 3D";
     this.overlayText.textContent = snapshot.message;
     this.overlayHint.textContent = "Pressione Enter para iniciar";
+  }
+
+  private toggleMobileHud(): void {
+    this.mobileHudHidden = !this.mobileHudHidden;
+    this.applyHudVisibilityState();
+  }
+
+  private applyHudVisibilityState(): void {
+    this.root.classList.toggle("hud-hidden-mobile", this.mobileHudHidden);
+    this.hudPanel.setAttribute("aria-hidden", this.mobileHudHidden ? "true" : "false");
+    this.hudToggleButton.textContent = this.mobileHudHidden ? "Mostrar HUD" : "Ocultar HUD";
+    this.hudToggleButton.setAttribute(
+      "aria-label",
+      this.mobileHudHidden ? "Mostrar barra de progresso" : "Ocultar barra de progresso",
+    );
   }
 }

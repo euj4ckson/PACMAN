@@ -173,7 +173,39 @@ canvas {
     0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   backdrop-filter: blur(7px);
   transform-origin: left top;
+  transition: opacity 180ms ease, transform 180ms ease;
   animation: hud-arrive 420ms ease-out;
+}
+
+.hud-visibility-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  pointer-events: auto;
+  width: 104px;
+  height: 34px;
+  border: 1px solid rgba(125, 192, 255, 0.52);
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(32, 75, 146, 0.82), rgba(8, 23, 56, 0.92));
+  color: #ebf6ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hud-hidden-mobile .hud {
+  opacity: 0;
+  transform: translate3d(0, -14px, 0) scale(0.98);
+  pointer-events: none;
+}
+
+.hud-hidden-mobile .hud-visibility-toggle {
+  background: linear-gradient(160deg, rgba(18, 140, 119, 0.88), rgba(6, 50, 68, 0.94));
+  border-color: rgba(141, 255, 224, 0.62);
 }
 
 .hud-header {
@@ -397,6 +429,14 @@ canvas {
     left: 8px;
     width: calc(100vw - 16px);
     padding: 10px;
+  }
+
+  .hud-visibility-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    top: 10px;
+    right: 10px;
   }
 
   .hud-grid {
