@@ -11,6 +11,11 @@
   --accent-red: #ff6578;
   --accent-green: #7dffad;
   --shadow: rgba(0, 0, 0, 0.45);
+  --edge-pad: clamp(6px, 1.8vw, 14px);
+  --touch-cell: clamp(40px, 10vw, 56px);
+  --touch-gap: clamp(4px, 1.2vw, 6px);
+  --touch-action-w: clamp(64px, 18vw, 78px);
+  --touch-action-h: clamp(38px, 9vw, 44px);
   font-family: "Bahnschrift", "Trebuchet MS", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -31,6 +36,7 @@ body,
 }
 
 body {
+  min-height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
   color: var(--text-main);
@@ -44,6 +50,8 @@ body {
   position: relative;
   isolation: isolate;
   touch-action: none;
+  min-width: 280px;
+  min-height: 100dvh;
 }
 
 #app::before {
@@ -88,12 +96,12 @@ canvas {
   right: 0;
   bottom: 0;
   z-index: 4;
-  padding: 0 max(10px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom))
-    max(10px, env(safe-area-inset-right));
+  padding: 0 max(var(--edge-pad), env(safe-area-inset-left))
+    calc(12px + env(safe-area-inset-bottom)) max(var(--edge-pad), env(safe-area-inset-right));
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 12px;
+  gap: 14px;
   pointer-events: none;
 }
 
@@ -105,38 +113,40 @@ canvas {
 
 .touch-dpad {
   border-radius: 14px;
-  padding: 8px;
+  padding: clamp(6px, 1.5vw, 9px);
   border: 1px solid rgba(103, 174, 255, 0.44);
   background: rgba(6, 14, 33, 0.74);
   backdrop-filter: blur(8px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
 }
 
 .touch-dpad-grid {
   display: grid;
-  grid-template-columns: repeat(3, 52px);
-  grid-template-rows: repeat(3, 52px);
+  grid-template-columns: repeat(3, var(--touch-cell));
+  grid-template-rows: repeat(3, var(--touch-cell));
   align-items: center;
   justify-items: center;
-  gap: 6px;
+  gap: var(--touch-gap);
 }
 
 .touch-center {
   color: rgba(120, 177, 255, 0.45);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .touch-controls button {
-  width: 52px;
-  height: 52px;
+  width: var(--touch-cell);
+  height: var(--touch-cell);
   border: 1px solid rgba(106, 205, 255, 0.5);
   border-radius: 12px;
   background: linear-gradient(165deg, rgba(57, 131, 226, 0.35), rgba(12, 41, 92, 0.72));
   color: #ecf6ff;
-  font-size: 22px;
+  font-size: clamp(18px, 5vw, 24px);
   font-weight: 700;
   line-height: 1;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  transition: transform 90ms ease, background 120ms ease;
 }
 
 .touch-controls button.is-active {
@@ -150,19 +160,24 @@ canvas {
 }
 
 .touch-actions button {
-  width: 78px;
-  height: 44px;
+  width: var(--touch-action-w);
+  height: var(--touch-action-h);
   border-radius: 11px;
-  font-size: 13px;
+  font-size: clamp(10px, 2.6vw, 12px);
   letter-spacing: 0.08em;
+}
+
+.touch-actions button[data-action="start"] {
+  background: linear-gradient(165deg, rgba(40, 164, 126, 0.5), rgba(12, 69, 77, 0.78));
+  border-color: rgba(141, 255, 224, 0.56);
 }
 
 .hud {
   position: absolute;
-  top: 14px;
-  left: 14px;
-  width: min(430px, calc(100vw - 28px));
-  padding: 14px;
+  top: var(--edge-pad);
+  left: var(--edge-pad);
+  width: min(430px, calc(100vw - (var(--edge-pad) * 2)));
+  padding: clamp(8px, 1.6vw, 14px);
   border: 1px solid var(--panel-border);
   border-radius: 16px;
   background:
@@ -181,6 +196,7 @@ canvas {
   position: absolute;
   top: 10px;
   right: 10px;
+  z-index: 6;
   pointer-events: auto;
   width: 104px;
   height: 34px;
@@ -281,7 +297,7 @@ canvas {
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: clamp(10px, 2.2vw, 20px);
   background:
     radial-gradient(circle at 50% 15%, rgba(49, 97, 202, 0.3), rgba(5, 9, 18, 0.78)),
     rgba(4, 8, 17, 0.55);
@@ -295,7 +311,9 @@ canvas {
 
 .intro-card {
   width: min(560px, 100%);
-  padding: 24px;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  padding: clamp(14px, 2.8vw, 24px);
   border-radius: 18px;
   border: 1px solid rgba(127, 172, 255, 0.46);
   background:
@@ -322,7 +340,7 @@ canvas {
 
 .intro-title {
   margin: 12px 0 8px;
-  font-size: clamp(30px, 5vw, 46px);
+  font-size: clamp(24px, 5vw, 46px);
   line-height: 0.96;
   letter-spacing: 0.06em;
   color: var(--accent);
@@ -332,7 +350,7 @@ canvas {
 .intro-text {
   margin: 0 auto;
   max-width: 420px;
-  font-size: 15px;
+  font-size: clamp(13px, 2.8vw, 15px);
   line-height: 1.45;
   color: #d6e7ff;
 }
@@ -343,13 +361,13 @@ canvas {
   display: grid;
   gap: 6px;
   text-align: left;
-  font-size: 13px;
+  font-size: clamp(12px, 2.6vw, 13px);
   color: #bfdaff;
 }
 
 .intro-hint {
   margin: 18px 0 0;
-  font-size: 14px;
+  font-size: clamp(12px, 2.8vw, 14px);
   letter-spacing: 0.06em;
   color: #e8f5ff;
   animation: pulse-hint 1.35s ease-in-out infinite;
@@ -380,6 +398,19 @@ canvas {
 .intro-win .intro-title {
   color: #b8ffd5;
   text-shadow: 0 4px 22px rgba(125, 255, 173, 0.32);
+}
+
+.intro-countdown .intro-badge {
+  background: rgba(93, 226, 255, 0.26);
+  border-color: rgba(93, 226, 255, 0.62);
+}
+
+.intro-countdown .intro-title {
+  font-size: clamp(82px, 18vw, 140px);
+  color: #b5f5ff;
+  line-height: 0.9;
+  text-shadow: 0 8px 34px rgba(93, 226, 255, 0.4);
+  animation: countdown-pop 700ms ease-out;
 }
 
 @keyframes hud-arrive {
@@ -423,12 +454,20 @@ canvas {
   }
 }
 
+@keyframes countdown-pop {
+  from {
+    transform: scale(0.78);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 @media (max-width: 760px) {
   .hud {
-    top: 8px;
-    left: 8px;
-    width: calc(100vw - 16px);
-    padding: 10px;
+    width: calc(100vw - (var(--edge-pad) * 2));
   }
 
   .hud-visibility-toggle {
@@ -444,29 +483,79 @@ canvas {
   }
 
   .intro-card {
-    padding: 18px;
+    max-height: calc(100dvh - 16px);
   }
 
   .intro-help {
     width: 100%;
   }
 
-  .touch-dpad-grid {
-    grid-template-columns: repeat(3, 46px);
-    grid-template-rows: repeat(3, 46px);
-    gap: 4px;
+  .touch-controls {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-height: 640px) {
+  :root {
+    --touch-cell: clamp(34px, 8.3vh, 46px);
+    --touch-action-w: clamp(58px, 15vw, 70px);
+    --touch-action-h: clamp(32px, 7.5vh, 40px);
   }
 
-  .touch-controls button {
-    width: 46px;
-    height: 46px;
-    font-size: 20px;
+  .hud {
+    max-width: min(380px, calc(100vw - (var(--edge-pad) * 2)));
   }
 
-  .touch-actions button {
-    width: 70px;
-    height: 40px;
-    font-size: 12px;
+  .hud-kicker {
+    display: none;
+  }
+
+  .hud-grid {
+    gap: 6px;
+  }
+
+  .hud-card {
+    padding: 7px 8px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  :root {
+    --touch-cell: clamp(32px, 8vh, 42px);
+    --touch-action-w: clamp(54px, 12vw, 66px);
+    --touch-action-h: clamp(30px, 7vh, 36px);
+  }
+
+  .touch-controls {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .hud {
+    max-width: min(330px, calc(100vw - (var(--edge-pad) * 2)));
+  }
+
+  .hud-message {
+    display: none;
+  }
+
+  .intro-help {
+    display: none;
+  }
+
+  .intro-title {
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .hud-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hud-visibility-toggle {
+    width: 96px;
+    height: 32px;
+    font-size: 10px;
   }
 }
 

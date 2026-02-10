@@ -22,20 +22,32 @@ function keyToDirection(code: string): Direction | null {
 export class Input {
   private readonly target: Window;
   private readonly container: HTMLElement;
+  private readonly coarsePointer: boolean;
   private bufferedDirection: Direction | null = null;
   private startRequested = false;
   private cameraToggleRequested = false;
   private readonly cleanups: Array<() => void> = [];
   private touchControlsRoot: HTMLDivElement | null = null;
+  private swipeStart:
+    | {
+        pointerId: number;
+        x: number;
+        y: number;
+      }
+    | null = null;
+  private swipeLastDirection: Direction | null = null;
+  private readonly swipeThreshold = 18;
 
   private readonly onKeyDownBound: (event: KeyboardEvent) => void;
 
   constructor(container: HTMLElement, target: Window = window) {
     this.container = container;
     this.target = target;
+    this.coarsePointer = this.target.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     this.onKeyDownBound = (event) => this.onKeyDown(event);
     this.listen(this.target, "keydown", this.onKeyDownBound);
     this.createTouchControls();
+    this.createSwipeInput();
   }
 
   public consumeDirectionPress(): Direction | null {
@@ -65,6 +77,7 @@ export class Input {
       cleanup();
     }
     this.cleanups.length = 0;
+
     if (this.touchControlsRoot) {
       this.touchControlsRoot.remove();
       this.touchControlsRoot = null;
@@ -98,13 +111,13 @@ export class Input {
       <div class="touch-panel touch-dpad">
         <div class="touch-dpad-grid">
           <span></span>
-          <button type="button" data-dir="up" aria-label="Mover para cima">▲</button>
+          <button type="button" data-dir="up" aria-label="Mover para cima">&#9650;</button>
           <span></span>
-          <button type="button" data-dir="left" aria-label="Mover para esquerda">◀</button>
-          <span class="touch-center">●</span>
-          <button type="button" data-dir="right" aria-label="Mover para direita">▶</button>
+          <button type="button" data-dir="left" aria-label="Mover para esquerda">&#9664;</button>
+          <span class="touch-center">o</span>
+          <button type="button" data-dir="right" aria-label="Mover para direita">&#9654;</button>
           <span></span>
-          <button type="button" data-dir="down" aria-label="Mover para baixo">▼</button>
+          <button type="button" data-dir="down" aria-label="Mover para baixo">&#9660;</button>
           <span></span>
         </div>
       </div>
@@ -163,8 +176,9 @@ export class Input {
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
       queueDirection();
+      this.vibrate(8);
       stopHolding();
-      holdIntervalId = window.setInterval(queueDirection, 110);
+      holdIntervalId = window.setInterval(queueDirection, 90);
       button.classList.add("is-active");
     });
 
@@ -180,11 +194,110 @@ export class Input {
     const press = (event: PointerEvent) => {
       event.preventDefault();
       button.classList.add("is-active");
+      this.vibrate(12);
       action();
       window.setTimeout(() => button.classList.remove("is-active"), 120);
     };
 
     this.listen(button, "pointerdown", press);
+  }
+
+  private createSwipeInput(): void {
+    if (!this.coarsePointer) {
+      return;
+    }
+
+    this.listen(this.container, "pointerdown", (event: PointerEvent) => {
+      if (event.pointerType !== "touch") {
+        return;
+      }
+
+      if (this.isInsideUiElement(event.target)) {
+        return;
+      }
+
+      this.swipeStart = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      };
+      this.swipeLastDirection = null;
+    });
+
+    this.listen(this.container, "pointermove", (event: PointerEvent) => {
+      if (!this.swipeStart || event.pointerId !== this.swipeStart.pointerId) {
+        return;
+      }
+
+      const deltaX = event.clientX - this.swipeStart.x;
+      const deltaY = event.clientY - this.swipeStart.y;
+      const direction = this.resolveSwipeDirection(deltaX, deltaY);
+      if (!direction) {
+        return;
+      }
+
+      if (direction !== this.swipeLastDirection) {
+        this.bufferedDirection = direction;
+        this.swipeLastDirection = direction;
+        this.vibrate(8);
+      }
+
+      // Permite encadear mudancas de direcao no mesmo gesto.
+      this.swipeStart.x = event.clientX;
+      this.swipeStart.y = event.clientY;
+    });
+
+    this.listen(this.container, "pointerup", (event: PointerEvent) => {
+      if (!this.swipeStart || event.pointerId !== this.swipeStart.pointerId) {
+        return;
+      }
+
+      const deltaX = event.clientX - this.swipeStart.x;
+      const deltaY = event.clientY - this.swipeStart.y;
+      this.swipeStart = null;
+      this.swipeLastDirection = null;
+
+      const direction = this.resolveSwipeDirection(deltaX, deltaY);
+      if (direction) {
+        this.bufferedDirection = direction;
+        this.vibrate(10);
+      }
+    });
+
+    this.listen(this.container, "pointercancel", () => {
+      this.swipeStart = null;
+      this.swipeLastDirection = null;
+    });
+  }
+
+  private isInsideUiElement(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+    return target.closest(".touch-controls, .hud, .hud-visibility-toggle, .intro-overlay") !== null;
+  }
+
+  private vibrate(durationMs: number): void {
+    if (!this.coarsePointer) {
+      return;
+    }
+
+    if ("vibrate" in navigator) {
+      navigator.vibrate(durationMs);
+    }
+  }
+
+  private resolveSwipeDirection(deltaX: number, deltaY: number): Direction | null {
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (Math.max(absX, absY) < this.swipeThreshold) {
+      return null;
+    }
+
+    if (absX > absY) {
+      return deltaX > 0 ? "right" : "left";
+    }
+    return deltaY > 0 ? "down" : "up";
   }
 
   private listen<K extends keyof WindowEventMap>(

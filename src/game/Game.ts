@@ -14,6 +14,7 @@ import {
 import { World } from "./World";
 
 const STARTING_LIVES = 3;
+const START_COUNTDOWN_DURATION = 3;
 const FRIGHTENED_DURATION = 8;
 const COLLISION_DISTANCE = 0.52;
 
@@ -38,6 +39,7 @@ export class Game {
   private readonly tempPlayerPosition = new THREE.Vector3();
   private readonly tempGhostPosition = new THREE.Vector3();
   private readonly tempCameraPosition = new THREE.Vector3();
+  private readonly tempCameraOffset = new THREE.Vector3();
 
   private animationId: number | null = null;
 
@@ -45,6 +47,7 @@ export class Game {
   private score = 0;
   private lives = STARTING_LIVES;
   private readyMessage = "Pressione Enter para iniciar a rodada.";
+  private countdownRemaining = 0;
 
   private cameraModeIndex = 0;
   private readonly cameraOffsets = [new THREE.Vector3(0, 12, 10), new THREE.Vector3(0, 8, 6)];
@@ -112,7 +115,9 @@ export class Game {
     this.maze.update(deltaSeconds);
     this.world.update(deltaSeconds);
 
-    if (this.state === "playing") {
+    if (this.state === "countdown") {
+      this.updateCountdown(deltaSeconds);
+    } else if (this.state === "playing") {
       this.updateModeSchedule(deltaSeconds);
       this.updateSimulation(deltaSeconds);
     }
@@ -132,10 +137,10 @@ export class Game {
     if (this.input.consumeStartPress()) {
       this.audio.unlock();
       if (this.state === "ready") {
-        this.state = "playing";
+        this.startCountdown();
       } else if (this.state === "gameover" || this.state === "win") {
         this.resetMatch();
-        this.state = "playing";
+        this.startCountdown();
       }
     }
 
@@ -235,9 +240,17 @@ export class Game {
     }
   }
 
+  private updateCountdown(deltaSeconds: number): void {
+    this.countdownRemaining = Math.max(0, this.countdownRemaining - deltaSeconds);
+    if (this.countdownRemaining <= 0) {
+      this.state = "playing";
+      this.countdownRemaining = 0;
+    }
+  }
+
   private updateCamera(deltaSeconds: number): void {
     this.player.getWorldPosition(this.tempCameraPosition);
-    const offset = this.cameraOffsets[this.cameraModeIndex];
+    const offset = this.getAdaptiveCameraOffset(this.tempCameraOffset);
     this.tempCameraPosition.add(offset);
 
     const factor = dampLerpFactor(9, deltaSeconds);
@@ -256,10 +269,15 @@ export class Game {
       ghostMode: this.getGhostModeLabel(),
       cameraMode: this.cameraModeIndex === 0 ? "Longe" : "Perto",
       message: this.getStateMessage(),
+      countdownRemaining: this.countdownRemaining,
     });
   }
 
   private getStateMessage(): string {
+    if (this.state === "countdown") {
+      return `Comecando em ${Math.max(1, Math.ceil(this.countdownRemaining))}...`;
+    }
+
     if (this.state === "playing") {
       return "Colete os pellets. Power pellet deixa fantasmas vulneraveis.";
     }
@@ -273,6 +291,7 @@ export class Game {
     this.maze.resetPellets();
     this.resetModeSchedule();
     this.resetRoundPositions();
+    this.countdownRemaining = 0;
     this.state = "ready";
   }
 
@@ -304,5 +323,28 @@ export class Game {
     for (const ghost of this.ghosts) {
       ghost.setMode(this.ghostMode);
     }
+  }
+
+  private startCountdown(): void {
+    this.state = "countdown";
+    this.countdownRemaining = START_COUNTDOWN_DURATION;
+    this.readyMessage = "Prepare-se para iniciar.";
+  }
+
+  private getAdaptiveCameraOffset(out: THREE.Vector3): THREE.Vector3 {
+    out.copy(this.cameraOffsets[this.cameraModeIndex]);
+    const aspect = this.world.camera.aspect;
+
+    if (aspect < 1) {
+      const portrait = 1 - aspect;
+      out.y *= 1 + portrait * 0.55;
+      out.z *= 1 + portrait * 0.32;
+    } else if (aspect > 1.8) {
+      const wide = Math.min(1, aspect - 1.8);
+      out.y *= 0.96;
+      out.z *= 1 + wide * 0.18;
+    }
+
+    return out;
   }
 }

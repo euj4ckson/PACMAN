@@ -42,7 +42,9 @@ npm run preview
 - `Setas` ou `WASD`: mover o PAC-MAN
 - `Enter`: iniciar partida / continuar / reiniciar
 - `C`: alternar entre 2 distancias de camera (perto/longe)
-- `Celular`: D-pad touch na tela + botoes `START` e `CAM`
+- `Celular`: D-pad touch com setas direcionais + swipe na tela + botoes `START` e `CAM`
+- Inicio de rodada com contagem regressiva de 3 segundos (tempo para ajustar e ocultar HUD)
+- Layout responsivo para portrait/landscape, telas pequenas e tablets
 
 ## Rodar no celular (mesma rede Wi-Fi)
 

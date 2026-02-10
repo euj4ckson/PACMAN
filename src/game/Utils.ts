@@ -1,6 +1,6 @@
 export type Direction = "up" | "down" | "left" | "right";
 
-export type GameState = "ready" | "playing" | "gameover" | "win";
+export type GameState = "ready" | "countdown" | "playing" | "gameover" | "win";
 
 export type GhostMode = "chase" | "scatter";
 

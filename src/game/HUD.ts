@@ -8,11 +8,13 @@ interface HUDSnapshot {
   ghostMode: string;
   cameraMode: string;
   message: string;
+  countdownRemaining: number;
 }
 
 function formatStateLabel(state: GameState): string {
   switch (state) {
     case "ready":
+    case "countdown":
       return "READY";
     case "playing":
       return "PLAYING";
@@ -183,12 +185,22 @@ export class HUD {
   private updateOverlay(snapshot: HUDSnapshot): void {
     if (snapshot.state === "playing") {
       this.overlay.classList.add("is-hidden");
-      this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win");
+      this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win", "intro-countdown");
       return;
     }
 
     this.overlay.classList.remove("is-hidden");
-    this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win");
+    this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win", "intro-countdown");
+
+    if (snapshot.state === "countdown") {
+      const countdown = Math.max(1, Math.ceil(snapshot.countdownRemaining));
+      this.overlayCard.classList.add("intro-countdown");
+      this.overlayBadge.textContent = "START";
+      this.overlayTitle.textContent = countdown.toString();
+      this.overlayText.textContent = "Observe o labirinto e ajuste o HUD antes do inicio.";
+      this.overlayHint.textContent = "A rodada inicia automaticamente";
+      return;
+    }
 
     if (snapshot.state === "win") {
       this.overlayCard.classList.add("intro-win");
