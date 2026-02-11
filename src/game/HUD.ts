@@ -237,7 +237,7 @@ export class HUD {
     this.overlay.classList.remove("is-hidden");
     this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win", "intro-countdown");
 
-    const canEditControl = snapshot.state === "ready" || snapshot.state === "gameover" || snapshot.state === "win";
+    const canEditControl = true;
     this.controlConfig.classList.toggle("is-disabled", !canEditControl);
     this.controlButtons.joystick.disabled = !canEditControl;
     this.controlButtons.dpad.disabled = !canEditControl;

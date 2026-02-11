@@ -412,11 +412,13 @@ canvas {
     radial-gradient(circle at 50% 15%, rgba(49, 97, 202, 0.3), rgba(5, 9, 18, 0.78)),
     rgba(4, 8, 17, 0.55);
   transition: opacity 260ms ease, visibility 260ms ease;
+  pointer-events: auto;
 }
 
 .intro-overlay.is-hidden {
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
 }
 
 .intro-card {
