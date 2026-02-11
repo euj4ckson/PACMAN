@@ -1,4 +1,4 @@
-import type { GameState } from "./Utils";
+import type { GameState, MobileControlScheme } from "./Utils";
 
 interface HUDSnapshot {
   score: number;
@@ -9,6 +9,12 @@ interface HUDSnapshot {
   cameraMode: string;
   message: string;
   countdownRemaining: number;
+  mobileControlScheme: MobileControlScheme;
+}
+
+interface HUDOptions {
+  initialMobileControlScheme?: MobileControlScheme;
+  onMobileControlSchemeChange?: (scheme: MobileControlScheme) => void;
 }
 
 function formatStateLabel(state: GameState): string {
@@ -44,10 +50,16 @@ export class HUD {
   private readonly overlayTitle: HTMLHeadingElement;
   private readonly overlayText: HTMLParagraphElement;
   private readonly overlayHint: HTMLParagraphElement;
+  private readonly controlConfig: HTMLDivElement;
+  private readonly controlButtons: Record<MobileControlScheme, HTMLButtonElement>;
+  private readonly onMobileControlSchemeChange?: (scheme: MobileControlScheme) => void;
   private mobileHudHidden = false;
+  private mobileControlScheme: MobileControlScheme;
   private readonly onToggleHudBound: () => void;
+  private readonly onControlJoystickBound: () => void;
+  private readonly onControlDpadBound: () => void;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, options: HUDOptions = {}) {
     this.root = document.createElement("div");
     this.root.className = "hud-shell";
     this.root.innerHTML = `
@@ -96,6 +108,13 @@ export class HUD {
             <span>Movimento: WASD ou Setas</span>
             <span>Camera: C</span>
           </div>
+          <div class="control-config" data-role="control-config">
+            <p class="control-config-label">Controle no celular</p>
+            <div class="control-options">
+              <button type="button" class="control-option" data-role="control-joystick">Joystick</button>
+              <button type="button" class="control-option" data-role="control-dpad">Setas</button>
+            </div>
+          </div>
           <p class="intro-hint" data-role="overlay-hint">Pressione Enter para jogar</p>
         </div>
       </section>
@@ -116,6 +135,9 @@ export class HUD {
     const overlayTitle = this.root.querySelector<HTMLHeadingElement>('[data-role="overlay-title"]');
     const overlayText = this.root.querySelector<HTMLParagraphElement>('[data-role="overlay-text"]');
     const overlayHint = this.root.querySelector<HTMLParagraphElement>('[data-role="overlay-hint"]');
+    const controlConfig = this.root.querySelector<HTMLDivElement>('[data-role="control-config"]');
+    const controlJoystickButton = this.root.querySelector<HTMLButtonElement>('[data-role="control-joystick"]');
+    const controlDpadButton = this.root.querySelector<HTMLButtonElement>('[data-role="control-dpad"]');
 
     if (
       !scoreValue ||
@@ -132,7 +154,10 @@ export class HUD {
       !overlayBadge ||
       !overlayTitle ||
       !overlayText ||
-      !overlayHint
+      !overlayHint ||
+      !controlConfig ||
+      !controlJoystickButton ||
+      !controlDpadButton
     ) {
       throw new Error("Falha ao construir HUD.");
     }
@@ -152,10 +177,24 @@ export class HUD {
     this.overlayTitle = overlayTitle;
     this.overlayText = overlayText;
     this.overlayHint = overlayHint;
-    this.onToggleHudBound = () => this.toggleMobileHud();
-    this.hudToggleButton.addEventListener("click", this.onToggleHudBound);
-    this.applyHudVisibilityState();
+    this.controlConfig = controlConfig;
+    this.controlButtons = {
+      joystick: controlJoystickButton,
+      dpad: controlDpadButton,
+    };
+    this.onMobileControlSchemeChange = options.onMobileControlSchemeChange;
+    this.mobileControlScheme = options.initialMobileControlScheme ?? "joystick";
 
+    this.onToggleHudBound = () => this.toggleMobileHud();
+    this.onControlJoystickBound = () => this.setMobileControlScheme("joystick", true);
+    this.onControlDpadBound = () => this.setMobileControlScheme("dpad", true);
+
+    this.hudToggleButton.addEventListener("click", this.onToggleHudBound);
+    controlJoystickButton.addEventListener("click", this.onControlJoystickBound);
+    controlDpadButton.addEventListener("click", this.onControlDpadBound);
+
+    this.applyHudVisibilityState();
+    this.refreshControlButtons();
     container.appendChild(this.root);
   }
 
@@ -168,11 +207,17 @@ export class HUD {
     this.cameraValue.textContent = snapshot.cameraMode;
     this.messageValue.textContent = snapshot.message;
 
+    if (snapshot.mobileControlScheme !== this.mobileControlScheme) {
+      this.setMobileControlScheme(snapshot.mobileControlScheme, false);
+    }
+
     this.updateOverlay(snapshot);
   }
 
   public dispose(): void {
     this.hudToggleButton.removeEventListener("click", this.onToggleHudBound);
+    this.controlButtons.joystick.removeEventListener("click", this.onControlJoystickBound);
+    this.controlButtons.dpad.removeEventListener("click", this.onControlDpadBound);
     this.root.remove();
   }
 
@@ -191,6 +236,11 @@ export class HUD {
 
     this.overlay.classList.remove("is-hidden");
     this.overlayCard.classList.remove("intro-ready", "intro-danger", "intro-win", "intro-countdown");
+
+    const canEditControl = snapshot.state === "ready" || snapshot.state === "gameover" || snapshot.state === "win";
+    this.controlConfig.classList.toggle("is-disabled", !canEditControl);
+    this.controlButtons.joystick.disabled = !canEditControl;
+    this.controlButtons.dpad.disabled = !canEditControl;
 
     if (snapshot.state === "countdown") {
       const countdown = Math.max(1, Math.ceil(snapshot.countdownRemaining));
@@ -225,6 +275,24 @@ export class HUD {
     this.overlayTitle.textContent = "PAC-MAN 3D";
     this.overlayText.textContent = snapshot.message;
     this.overlayHint.textContent = "Pressione Enter para iniciar";
+  }
+
+  private setMobileControlScheme(scheme: MobileControlScheme, notify: boolean): void {
+    this.mobileControlScheme = scheme;
+    this.refreshControlButtons();
+    if (notify && this.onMobileControlSchemeChange) {
+      this.onMobileControlSchemeChange(scheme);
+    }
+  }
+
+  private refreshControlButtons(): void {
+    for (const [scheme, button] of Object.entries(this.controlButtons) as Array<
+      [MobileControlScheme, HTMLButtonElement]
+    >) {
+      const active = scheme === this.mobileControlScheme;
+      button.classList.toggle("is-selected", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    }
   }
 
   private toggleMobileHud(): void {

@@ -111,6 +111,14 @@ canvas {
   -webkit-user-select: none;
 }
 
+.touch-controls.scheme-joystick .touch-dpad {
+  display: none;
+}
+
+.touch-controls.scheme-dpad .touch-joystick {
+  display: none;
+}
+
 .touch-dpad {
   border-radius: 14px;
   padding: clamp(6px, 1.5vw, 9px);
@@ -127,6 +135,57 @@ canvas {
   align-items: center;
   justify-items: center;
   gap: var(--touch-gap);
+}
+
+.touch-joystick {
+  border-radius: 16px;
+  padding: clamp(6px, 1.5vw, 9px);
+  border: 1px solid rgba(103, 174, 255, 0.44);
+  background: rgba(6, 14, 33, 0.74);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
+}
+
+.touch-joystick-base {
+  position: relative;
+  width: calc(var(--touch-cell) * 2.36);
+  height: calc(var(--touch-cell) * 2.36);
+  border-radius: 50%;
+  border: 1px solid rgba(111, 194, 255, 0.52);
+  background:
+    radial-gradient(circle at center, rgba(71, 138, 228, 0.34), rgba(11, 39, 90, 0.84)),
+    rgba(7, 22, 53, 0.75);
+}
+
+.touch-joystick-base::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54%;
+  height: 54%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(140, 218, 255, 0.28);
+}
+
+.touch-joystick-base.is-active {
+  box-shadow: 0 0 0 1px rgba(130, 223, 255, 0.42), 0 0 18px rgba(89, 195, 255, 0.25);
+}
+
+.touch-joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--touch-cell) * 0.94);
+  height: calc(var(--touch-cell) * 0.94);
+  border-radius: 50%;
+  border: 1px solid rgba(176, 232, 255, 0.68);
+  background: linear-gradient(160deg, rgba(138, 229, 255, 0.62), rgba(35, 118, 205, 0.9));
+  transform: translate(0px, 0px);
+  margin-left: calc(var(--touch-cell) * -0.47);
+  margin-top: calc(var(--touch-cell) * -0.47);
+  will-change: transform;
 }
 
 .touch-center {
@@ -170,6 +229,57 @@ canvas {
 .touch-actions button[data-action="start"] {
   background: linear-gradient(165deg, rgba(40, 164, 126, 0.5), rgba(12, 69, 77, 0.78));
   border-color: rgba(141, 255, 224, 0.56);
+}
+
+.control-config {
+  margin: 16px auto 0;
+  max-width: 360px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(112, 193, 255, 0.28);
+  background: rgba(8, 19, 45, 0.58);
+}
+
+.control-config-label {
+  margin: 0 0 8px;
+  color: #b8d7ff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.control-options {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.control-option {
+  border: 1px solid rgba(115, 183, 255, 0.38);
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(25, 59, 120, 0.7), rgba(9, 26, 63, 0.9));
+  color: #e3f4ff;
+  min-width: 106px;
+  height: 34px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.control-option.is-selected {
+  border-color: rgba(158, 240, 255, 0.8);
+  background: linear-gradient(160deg, rgba(42, 142, 216, 0.86), rgba(16, 72, 155, 0.95));
+  box-shadow: 0 0 0 1px rgba(175, 248, 255, 0.28);
+}
+
+.control-config.is-disabled {
+  opacity: 0.56;
+}
+
+.control-config.is-disabled .control-option {
+  pointer-events: none;
 }
 
 .hud {
@@ -545,6 +655,17 @@ canvas {
   .intro-title {
     margin-top: 8px;
   }
+
+  .control-config {
+    margin-top: 10px;
+    padding: 8px;
+  }
+
+  .control-option {
+    min-width: 90px;
+    height: 30px;
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 360px) {
@@ -561,6 +682,10 @@ canvas {
 
 @media (hover: hover) and (pointer: fine) {
   .touch-controls {
+    display: none;
+  }
+
+  .control-config {
     display: none;
   }
 }

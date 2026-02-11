@@ -10,6 +10,7 @@ import {
   type GameState,
   type GhostMode,
   type GridPosition,
+  type MobileControlScheme,
 } from "./Utils";
 import { World } from "./World";
 
@@ -48,6 +49,7 @@ export class Game {
   private lives = STARTING_LIVES;
   private readyMessage = "Pressione Enter para iniciar a rodada.";
   private countdownRemaining = 0;
+  private mobileControlScheme: MobileControlScheme = "joystick";
 
   private cameraModeIndex = 0;
   private readonly cameraOffsets = [new THREE.Vector3(0, 12, 10), new THREE.Vector3(0, 8, 6)];
@@ -60,8 +62,14 @@ export class Game {
     this.world = new World(container);
     this.maze = new Maze(1);
     this.player = new Player(this.maze);
-    this.input = new Input(container);
-    this.hud = new HUD(container);
+    this.input = new Input(container, window, this.mobileControlScheme);
+    this.hud = new HUD(container, {
+      initialMobileControlScheme: this.mobileControlScheme,
+      onMobileControlSchemeChange: (scheme) => {
+        this.mobileControlScheme = scheme;
+        this.input.setMobileControlScheme(scheme);
+      },
+    });
     this.audio = new GameAudio();
 
     this.world.scene.add(this.maze.group);
@@ -270,6 +278,7 @@ export class Game {
       cameraMode: this.cameraModeIndex === 0 ? "Longe" : "Perto",
       message: this.getStateMessage(),
       countdownRemaining: this.countdownRemaining,
+      mobileControlScheme: this.mobileControlScheme,
     });
   }
 

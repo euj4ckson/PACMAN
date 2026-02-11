@@ -1,4 +1,4 @@
-import type { Direction } from "./Utils";
+import type { Direction, MobileControlScheme } from "./Utils";
 
 function keyToDirection(code: string): Direction | null {
   switch (code) {
@@ -23,11 +23,17 @@ export class Input {
   private readonly target: Window;
   private readonly container: HTMLElement;
   private readonly coarsePointer: boolean;
+  private mobileControlScheme: MobileControlScheme;
+
   private bufferedDirection: Direction | null = null;
   private startRequested = false;
   private cameraToggleRequested = false;
   private readonly cleanups: Array<() => void> = [];
+
   private touchControlsRoot: HTMLDivElement | null = null;
+  private joystickBase: HTMLDivElement | null = null;
+  private joystickKnob: HTMLDivElement | null = null;
+
   private swipeStart:
     | {
         pointerId: number;
@@ -36,18 +42,36 @@ export class Input {
       }
     | null = null;
   private swipeLastDirection: Direction | null = null;
-  private readonly swipeThreshold = 18;
+  private readonly swipeThreshold = 16;
+
+  private joystickPointerId: number | null = null;
+  private joystickDirection: Direction | null = null;
 
   private readonly onKeyDownBound: (event: KeyboardEvent) => void;
 
-  constructor(container: HTMLElement, target: Window = window) {
+  constructor(
+    container: HTMLElement,
+    target: Window = window,
+    initialMobileControlScheme: MobileControlScheme = "joystick",
+  ) {
     this.container = container;
     this.target = target;
+    this.mobileControlScheme = initialMobileControlScheme;
     this.coarsePointer = this.target.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
     this.onKeyDownBound = (event) => this.onKeyDown(event);
     this.listen(this.target, "keydown", this.onKeyDownBound);
     this.createTouchControls();
     this.createSwipeInput();
+  }
+
+  public setMobileControlScheme(scheme: MobileControlScheme): void {
+    this.mobileControlScheme = scheme;
+    this.applyMobileControlScheme();
+    this.resetJoystick();
+  }
+
+  public getMobileControlScheme(): MobileControlScheme {
+    return this.mobileControlScheme;
   }
 
   public consumeDirectionPress(): Direction | null {
@@ -108,7 +132,7 @@ export class Input {
     const root = document.createElement("div");
     root.className = "touch-controls";
     root.innerHTML = `
-      <div class="touch-panel touch-dpad">
+      <div class="touch-panel touch-dpad" data-role="dpad-panel">
         <div class="touch-dpad-grid">
           <span></span>
           <button type="button" data-dir="up" aria-label="Mover para cima">&#9650;</button>
@@ -119,6 +143,11 @@ export class Input {
           <span></span>
           <button type="button" data-dir="down" aria-label="Mover para baixo">&#9660;</button>
           <span></span>
+        </div>
+      </div>
+      <div class="touch-panel touch-joystick" data-role="joystick-panel">
+        <div class="touch-joystick-base" data-role="joystick-base">
+          <div class="touch-joystick-knob" data-role="joystick-knob"></div>
         </div>
       </div>
       <div class="touch-panel touch-actions">
@@ -155,6 +184,17 @@ export class Input {
         });
       }
     }
+
+    const joystickPanel = root.querySelector<HTMLDivElement>('[data-role="joystick-panel"]');
+    const joystickBase = root.querySelector<HTMLDivElement>('[data-role="joystick-base"]');
+    const joystickKnob = root.querySelector<HTMLDivElement>('[data-role="joystick-knob"]');
+    if (joystickPanel && joystickBase && joystickKnob) {
+      this.joystickBase = joystickBase;
+      this.joystickKnob = joystickKnob;
+      this.bindJoystick(joystickBase);
+    }
+
+    this.applyMobileControlScheme();
   }
 
   private bindDirectionButton(button: HTMLButtonElement, direction: Direction): void {
@@ -202,12 +242,98 @@ export class Input {
     this.listen(button, "pointerdown", press);
   }
 
+  private bindJoystick(joystickBase: HTMLDivElement): void {
+    this.listen(joystickBase, "pointerdown", (event: PointerEvent) => {
+      event.preventDefault();
+      if (this.mobileControlScheme !== "joystick") {
+        return;
+      }
+      this.joystickPointerId = event.pointerId;
+      joystickBase.setPointerCapture(event.pointerId);
+      this.updateJoystickByPoint(event.clientX, event.clientY);
+    });
+
+    this.listen(joystickBase, "pointermove", (event: PointerEvent) => {
+      if (this.mobileControlScheme !== "joystick") {
+        return;
+      }
+      if (this.joystickPointerId !== event.pointerId) {
+        return;
+      }
+      this.updateJoystickByPoint(event.clientX, event.clientY);
+    });
+
+    this.listen(joystickBase, "pointerup", (event: PointerEvent) => {
+      if (this.joystickPointerId !== event.pointerId) {
+        return;
+      }
+      event.preventDefault();
+      this.resetJoystick();
+    });
+
+    this.listen(joystickBase, "pointercancel", () => {
+      this.resetJoystick();
+    });
+    this.listen(joystickBase, "pointerleave", () => {
+      this.resetJoystick();
+    });
+  }
+
+  private updateJoystickByPoint(pointerX: number, pointerY: number): void {
+    if (!this.joystickBase || !this.joystickKnob) {
+      return;
+    }
+
+    const rect = this.joystickBase.getBoundingClientRect();
+    const centerX = rect.left + rect.width * 0.5;
+    const centerY = rect.top + rect.height * 0.5;
+    const maxRadius = rect.width * 0.32;
+
+    const rawX = pointerX - centerX;
+    const rawY = pointerY - centerY;
+    const rawDistance = Math.hypot(rawX, rawY);
+
+    let clampedX = rawX;
+    let clampedY = rawY;
+    if (rawDistance > maxRadius && rawDistance > 0.001) {
+      const scale = maxRadius / rawDistance;
+      clampedX *= scale;
+      clampedY *= scale;
+    }
+
+    this.joystickKnob.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+    this.joystickBase.classList.toggle("is-active", rawDistance > maxRadius * 0.2);
+
+    const direction = this.resolveSwipeDirection(rawX, rawY, maxRadius * 0.28);
+    if (direction && direction !== this.joystickDirection) {
+      this.bufferedDirection = direction;
+      this.joystickDirection = direction;
+      this.vibrate(8);
+    } else if (!direction) {
+      this.joystickDirection = null;
+    }
+  }
+
+  private resetJoystick(): void {
+    this.joystickPointerId = null;
+    this.joystickDirection = null;
+    if (this.joystickBase) {
+      this.joystickBase.classList.remove("is-active");
+    }
+    if (this.joystickKnob) {
+      this.joystickKnob.style.transform = "translate(0px, 0px)";
+    }
+  }
+
   private createSwipeInput(): void {
     if (!this.coarsePointer) {
       return;
     }
 
     this.listen(this.container, "pointerdown", (event: PointerEvent) => {
+      if (this.mobileControlScheme !== "dpad") {
+        return;
+      }
       if (event.pointerType !== "touch") {
         return;
       }
@@ -225,13 +351,16 @@ export class Input {
     });
 
     this.listen(this.container, "pointermove", (event: PointerEvent) => {
+      if (this.mobileControlScheme !== "dpad") {
+        return;
+      }
       if (!this.swipeStart || event.pointerId !== this.swipeStart.pointerId) {
         return;
       }
 
       const deltaX = event.clientX - this.swipeStart.x;
       const deltaY = event.clientY - this.swipeStart.y;
-      const direction = this.resolveSwipeDirection(deltaX, deltaY);
+      const direction = this.resolveSwipeDirection(deltaX, deltaY, this.swipeThreshold);
       if (!direction) {
         return;
       }
@@ -242,12 +371,14 @@ export class Input {
         this.vibrate(8);
       }
 
-      // Permite encadear mudancas de direcao no mesmo gesto.
       this.swipeStart.x = event.clientX;
       this.swipeStart.y = event.clientY;
     });
 
     this.listen(this.container, "pointerup", (event: PointerEvent) => {
+      if (this.mobileControlScheme !== "dpad") {
+        return;
+      }
       if (!this.swipeStart || event.pointerId !== this.swipeStart.pointerId) {
         return;
       }
@@ -257,7 +388,7 @@ export class Input {
       this.swipeStart = null;
       this.swipeLastDirection = null;
 
-      const direction = this.resolveSwipeDirection(deltaX, deltaY);
+      const direction = this.resolveSwipeDirection(deltaX, deltaY, this.swipeThreshold);
       if (direction) {
         this.bufferedDirection = direction;
         this.vibrate(10);
@@ -268,6 +399,14 @@ export class Input {
       this.swipeStart = null;
       this.swipeLastDirection = null;
     });
+  }
+
+  private applyMobileControlScheme(): void {
+    if (!this.touchControlsRoot) {
+      return;
+    }
+    this.touchControlsRoot.classList.toggle("scheme-joystick", this.mobileControlScheme === "joystick");
+    this.touchControlsRoot.classList.toggle("scheme-dpad", this.mobileControlScheme === "dpad");
   }
 
   private isInsideUiElement(target: EventTarget | null): boolean {
@@ -281,16 +420,15 @@ export class Input {
     if (!this.coarsePointer) {
       return;
     }
-
     if ("vibrate" in navigator) {
       navigator.vibrate(durationMs);
     }
   }
 
-  private resolveSwipeDirection(deltaX: number, deltaY: number): Direction | null {
+  private resolveSwipeDirection(deltaX: number, deltaY: number, threshold: number): Direction | null {
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
-    if (Math.max(absX, absY) < this.swipeThreshold) {
+    if (Math.max(absX, absY) < threshold) {
       return null;
     }
 

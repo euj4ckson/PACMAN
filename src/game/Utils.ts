@@ -4,6 +4,8 @@ export type GameState = "ready" | "countdown" | "playing" | "gameover" | "win";
 
 export type GhostMode = "chase" | "scatter";
 
+export type MobileControlScheme = "joystick" | "dpad";
+
 export interface GridPosition {
   row: number;
   col: number;
